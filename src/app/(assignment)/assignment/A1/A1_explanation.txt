@@ -1,0 +1,13 @@
+1. fragment.glsl
+- hitSphere: For ray-sphere intersection first compute the quadratic coefficients based on the ray origin and direction, and sphere center vectors. If the determinant is negative then there's no hit, otherwise compute for the 2 intersection points and use the smaller none negative 't'. Then create the Hit object.
+- hitBox: For ray-box intersection first transfrom the original ray and ray-to-box direction vectors into box-local space, using the transpose of the box rotation matrix. Then compute for the intersection points into 2 of 6 possible sides. Sort the 't' values and get the min and max for each axis giving two 3D vectors tmin and tmax. Then get the largest component in tmin (call tEnter) and the smallest one in tmax (call tExit). If tEnter or tExit is non negative and tEnter < tExit then there is a hit. Then compute the normal vector in box-local space and translate both the normal and intersection point to world-space, using the box rotation matrix. Then create the Hit object. 
+- shading_phong: Compute and combine the ambient, diffuse and specular components to get the final Phong shading color. The diffuse color is based on the sampleDiffuse() output.
+- sampleDiffuse: If the material is the floor (matId = 0) then the diffuse color is based on the original material diffuse color modulated by the color from the texture. The 2D texture sample coordinate is tuned to match the expected output.
+- isShadowed: Idea is to shoot a ray from the input hit point to the light source then look for an object intersection. If the distance to this intersection is less than the distance to the light source then there is a shadow and the function returns true.
+- main: The reflected ray is generated using the current ray's direction vector and the current hit point's normal vector. The reflected ray then becomes the current ray in the next sampling iteration. The number of sampling interations is increased to 50 to increase the depth of the reflection tree and thereby generate a more accurate image.
+
+2. fragment_creative.glsl
+- This creates a scene including a computer monitor, a keyboard, a mouse, and a speaker on each side of the monitor
+- Removed the original objects and replaced with 7 boxes and 2 spheres. The monitor is composed of 3 boxes (frame, stand and display), 1 box each for keyboard and mouse, and the each speaker is composed of 1 box and a sphere. The sphere is partially inside its box.
+- In initScene() the camera position and orientation is adjusted to have an angled look and be able to see the horizon.
+- The floor is changed to an oak image in page.tsx
