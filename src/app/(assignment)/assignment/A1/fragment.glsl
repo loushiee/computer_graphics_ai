@@ -170,7 +170,8 @@ Hit hitSphere(const Ray r, const Sphere s)
 
     float sqrtD = sqrt(D);
     float t1 = (-B - sqrtD) / (2.0 * A);
-    if (t1 > Epsilon) {
+    float EpsilonLocal = Epsilon*100.0;
+    if (t1 > EpsilonLocal) {
         vec3 hit1 = raySrc + (t1 * rayDir);
         vec3 normal = normalize(hit1 - sphereCtr);
         hit = Hit(t1, hit1, normal, s.matId);
@@ -178,7 +179,7 @@ Hit hitSphere(const Ray r, const Sphere s)
     }
 
     float t2 = (-B + sqrtD) / (2.0 * A);
-    if (t2 > Epsilon) {
+    if (t2 > EpsilonLocal) {
         vec3 hit2 = raySrc + (t2 * rayDir);
         vec3 normal = normalize(hit2 - sphereCtr);
         hit = Hit(t2, hit2, normal, s.matId);
@@ -210,10 +211,11 @@ Hit hitBox(const Ray r, const Box b)
     vec3 tmax = max(t1, t2);
     float tEnter = max(max(tmin.x, tmin.y), tmin.z);
     float tExit = min(min(tmax.x, tmax.y), tmax.z);
-    if (tEnter > tExit || tExit < Epsilon) {
+    float EpsilonLocal = Epsilon*100.0;
+    if (tEnter > tExit || tExit <= EpsilonLocal) {
         return hit;
     }
-    if (tEnter > Epsilon) {
+    if (tEnter > EpsilonLocal) {
         vec3 hitEnterLocal = boxLocal + (tEnter * rayDirLocal);
         vec3 hitEnterWorld = boxRot * hitEnterLocal + boxCtr;
         vec3 normalLocal;
@@ -234,7 +236,7 @@ Hit hitBox(const Ray r, const Box b)
         hit = Hit(tEnter, hitEnterWorld, normalWorld, b.matId);
         return hit;
     }
-    if (tExit > Epsilon) {
+    if (tExit > EpsilonLocal) {
         vec3 hitExitLocal = boxLocal + (tExit * rayDirLocal);
         vec3 hitExitWorld = boxRot * hitExitLocal + boxCtr;
         vec3 normalLocal;
@@ -311,7 +313,7 @@ bool isShadowed(Light light, Hit h)
     bool shadowed = false;
 	
     /* your implementation starts */
-    Ray shadowRay = Ray(h.p + Epsilon*10.0, normalize(light.position - h.p));
+    Ray shadowRay = Ray(h.p + Epsilon, normalize(light.position - h.p));
     Hit hit = findHit(shadowRay);
     float tmax = length(light.position - h.p);
     if (hit.t > Epsilon && hit.t < tmax) {
@@ -329,7 +331,7 @@ vec3 sampleDiffuse(int matId, vec3 p)
         vec3 color = materials[matId].kd;
 		
         /* your implementation starts */
-        color = texture(floorTex, p.xz).rgb;
+        color = texture(floorTex, p.xz * 0.2).rgb;
 		/* your implementation ends */
         
 		return color;
@@ -487,7 +489,7 @@ void main()
         
 		/* your implementation starts */
         vec3 reflected_dir = reflect(recursive_ray.dir, hit.normal);
-        recursive_ray = Ray(hit.p + Epsilon*10.0, reflected_dir);
+        recursive_ray = Ray(hit.p + Epsilon, reflected_dir);
 		/* your implementation ends */
     }
 
