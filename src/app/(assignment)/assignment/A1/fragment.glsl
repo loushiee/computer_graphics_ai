@@ -1,3 +1,7 @@
+// #version 300 es
+// precision highp float;
+// in vec2 vUv; // UV (screen) coordinates in [0,1]^2
+// out vec4 FragColor; 
 /////////////////////////////////////////////////////
 //// CS 8803/4803 CGAI: Computer Graphics in AI Era
 //// Assignment a: Ray Tracing
@@ -150,9 +154,37 @@ Hit hitPlane(const Ray r, const Plane pl)
 Hit hitSphere(const Ray r, const Sphere s) 
 {
     Hit hit = noHit;
-	
+
     /* your implementation starts */
-    
+    vec3 raySrc = r.ori;
+    vec3 rayDir = r.dir;
+    vec3 sphereCtr = s.ori;
+    float radius = s.r;
+    float A = dot(rayDir, rayDir);
+    float B = 2.0 * (dot(raySrc, rayDir) - dot(sphereCtr, rayDir));
+    float C = dot(raySrc, raySrc) + dot(sphereCtr, sphereCtr) - (2.0 * dot(raySrc, sphereCtr)) - (radius * radius);
+    float D = (B * B) - (4.0 * A * C);
+    if (D < 0.0) {
+        return hit;
+    }
+
+    float sqrtD = sqrt(D);
+    float t1 = (-B - sqrtD) / (2.0 * A);
+    if (t1 > Epsilon) {
+        vec3 hit1 = raySrc + (t1 * rayDir);
+        vec3 normal = normalize(hit1 - sphereCtr);
+        hit = Hit(t1, hit1, normal, s.matId);
+        return hit;
+    }
+
+    float t2 = (-B + sqrtD) / (2.0 * A);
+    if (t2 > Epsilon) {
+        vec3 hit2 = raySrc + (t2 * rayDir);
+        vec3 normal = normalize(hit2 - sphereCtr);
+        hit = Hit(t2, hit2, normal, s.matId);
+        return hit;
+    }
+
 	/* your implementation ends */
     
 	return hit;
@@ -164,7 +196,65 @@ Hit hitBox(const Ray r, const Box b)
     Hit hit = noHit;
 	
     /* your implementation starts */
-
+    vec3 raySrc = r.ori;
+    vec3 rayDir = r.dir;
+    vec3 boxCtr = b.ori;
+    vec3 boxHalfWidth = b.halfWidth;
+    mat3 boxRot = b.rot;
+    mat3 rotInverse = transpose(boxRot);
+    vec3 boxLocal = rotInverse * (raySrc - boxCtr);
+    vec3 rayDirLocal = rotInverse * rayDir;
+    vec3 t1 = ( -boxHalfWidth - boxLocal) / rayDirLocal;
+    vec3 t2 = ( boxHalfWidth - boxLocal) / rayDirLocal;
+    vec3 tmin = min(t1, t2);
+    vec3 tmax = max(t1, t2);
+    float tEnter = max(max(tmin.x, tmin.y), tmin.z);
+    float tExit = min(min(tmax.x, tmax.y), tmax.z);
+    if (tEnter > tExit || tExit < Epsilon) {
+        return hit;
+    }
+    if (tEnter > Epsilon) {
+        vec3 hitEnterLocal = boxLocal + (tEnter * rayDirLocal);
+        vec3 hitEnterWorld = boxRot * hitEnterLocal + boxCtr;
+        vec3 normalLocal;
+        if (abs(hitEnterLocal.x - boxHalfWidth.x) < Epsilon) {
+            normalLocal = vec3(1.0, 0.0, 0.0);
+        } else if (abs(hitEnterLocal.x + boxHalfWidth.x) < Epsilon) {
+            normalLocal = vec3(-1.0, 0.0, 0.0);
+        } else if (abs(hitEnterLocal.y - boxHalfWidth.y) < Epsilon) {
+            normalLocal = vec3(0.0, 1.0, 0.0);
+        } else if (abs(hitEnterLocal.y + boxHalfWidth.y) < Epsilon) {
+            normalLocal = vec3(0.0, -1.0, 0.0);
+        } else if (abs(hitEnterLocal.z - boxHalfWidth.z) < Epsilon) {
+            normalLocal = vec3(0.0, 0.0, 1.0);
+        } else {
+            normalLocal = vec3(0.0, 0.0, -1.0);
+        }
+        vec3 normalWorld = normalize(boxRot * normalLocal);
+        hit = Hit(tEnter, hitEnterWorld, normalWorld, b.matId);
+        return hit;
+    }
+    if (tExit > Epsilon) {
+        vec3 hitExitLocal = boxLocal + (tExit * rayDirLocal);
+        vec3 hitExitWorld = boxRot * hitExitLocal + boxCtr;
+        vec3 normalLocal;
+        if (abs(hitExitLocal.x - boxHalfWidth.x) < Epsilon) {
+            normalLocal = vec3(1.0, 0.0, 0.0);
+        } else if (abs(hitExitLocal.x + boxHalfWidth.x) < Epsilon) {
+            normalLocal = vec3(-1.0, 0.0, 0.0);
+        } else if (abs(hitExitLocal.y - boxHalfWidth.y) < Epsilon) {
+            normalLocal = vec3(0.0, 1.0, 0.0);
+        } else if (abs(hitExitLocal.y + boxHalfWidth.y) < Epsilon) {
+            normalLocal = vec3(0.0, -1.0, 0.0);
+        } else if (abs(hitExitLocal.z - boxHalfWidth.z) < Epsilon) {
+            normalLocal = vec3(0.0, 0.0, 1.0);
+        } else {
+            normalLocal = vec3(0.0, 0.0, -1.0);
+        }
+        vec3 normalWorld = normalize(boxRot * normalLocal);
+        hit = Hit(tExit, hitExitWorld, normalWorld, b.matId);
+        return hit;
+    }
 	/* your implementation ends */
     
 	return hit;
@@ -202,7 +292,14 @@ vec3 shading_phong(Light light, int matId, vec3 e, vec3 p, vec3 s, vec3 n)
     vec3 color = matId == 0 ? vec3(0.2, 0, 0) : vec3(0, 0, 0.3);
 	
     /* your implementation starts */
-    
+    Material material = materials[matId];
+    vec3 ambient = material.ka * light.Ia;
+    vec3 color_diffuse = sampleDiffuse(matId, p);
+    vec3 diffuse = color_diffuse * material.kd * light.Id * max(dot(n, normalize(s - p)), 0.0);
+    vec3 reflect_dir = reflect(normalize(p - s), n);
+    vec3 view_dir = normalize(e - p);
+    vec3 specular = material.ks * light.Is * pow(max(dot(view_dir, reflect_dir), 0.0), material.shininess);
+    color = ambient + diffuse + specular;
 	/* your implementation ends */
     
 	return color;
@@ -214,7 +311,12 @@ bool isShadowed(Light light, Hit h)
     bool shadowed = false;
 	
     /* your implementation starts */
-    
+    Ray shadowRay = Ray(h.p + Epsilon*10.0, normalize(light.position - h.p));
+    Hit hit = findHit(shadowRay);
+    float tmax = length(light.position - h.p);
+    if (hit.t > Epsilon && hit.t < tmax) {
+        shadowed = true;
+    }
 	/* your implementation ends */
     
 	return shadowed;
@@ -227,7 +329,7 @@ vec3 sampleDiffuse(int matId, vec3 p)
         vec3 color = materials[matId].kd;
 		
         /* your implementation starts */
-        
+        color = texture(floorTex, p.xz).rgb;
 		/* your implementation ends */
         
 		return color;
@@ -356,7 +458,7 @@ void initScene()
 
 /* your implementation starts */
 
-const int numberOfSampling = 1;
+const int numberOfSampling = 50;
 
 /* your implementation ends */
 
@@ -384,10 +486,12 @@ void main()
         // TODO Step 5: Define the reflected ray and assign this ray to recursive_ray
         
 		/* your implementation starts */
-        
+        vec3 reflected_dir = reflect(recursive_ray.dir, hit.normal);
+        recursive_ray = Ray(hit.p + Epsilon*10.0, reflected_dir);
 		/* your implementation ends */
     }
 
     resultCol = gamma2(resultCol);
+    // FragColor = vec4(resultCol, 1.);
     gl_FragColor = vec4(resultCol, 1.);
 }
