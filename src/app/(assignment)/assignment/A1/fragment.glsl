@@ -296,11 +296,11 @@ vec3 shading_phong(Light light, int matId, vec3 e, vec3 p, vec3 s, vec3 n)
     /* your implementation starts */
     Material material = materials[matId];
     vec3 ambient = material.ka * light.Ia;
-    vec3 color_diffuse = sampleDiffuse(matId, p);
-    vec3 diffuse = color_diffuse * material.kd * light.Id * max(dot(n, normalize(s - p)), 0.0);
-    vec3 reflect_dir = reflect(normalize(p - s), n);
-    vec3 view_dir = normalize(e - p);
-    vec3 specular = material.ks * light.Is * pow(max(dot(view_dir, reflect_dir), 0.0), material.shininess);
+    vec3 colorDiffuse = sampleDiffuse(matId, p);
+    vec3 diffuse = colorDiffuse * material.kd * light.Id * max(dot(n, normalize(s - p)), 0.0);
+    vec3 reflectDir = reflect(normalize(p - s), n);
+    vec3 viewDir = normalize(e - p);
+    vec3 specular = material.ks * light.Is * pow(max(dot(viewDir, reflectDir), 0.0), material.shininess);
     color = ambient + diffuse + specular;
 	/* your implementation ends */
     
