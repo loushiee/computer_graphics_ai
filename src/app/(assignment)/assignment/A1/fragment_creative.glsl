@@ -7,7 +7,7 @@
 //// Assignment a: Ray Tracing
 /////////////////////////////////////////////////////
 
-varying vec2 vUv; // UV (screen) coordinates in [0,1]^2
+// varying vec2 vUv; // UV (screen) coordinates in [0,1]^2
 
 
 uniform vec2 iResolution;
@@ -92,10 +92,10 @@ struct Material
 //============================================================================
 Camera camera;
 Light lights[2];
-Material materials[6];
+Material materials[7];
 
 Sphere spheres[2];
-Box boxes[3];
+Box boxes[7];
 Plane planes[1];
 //////////// Random functions ///////////
 float g_seed = 0.;
@@ -375,6 +375,107 @@ mat3 getRotXYZ(float pitch, float yaw, float roll)
     return rotZ * rotY * rotX;
 }
 
+
+const int MAT_FLOOR    = 0;
+const int MAT_MONITOR  = 1;
+const int MAT_FRAME    = 2;
+const int MAT_KEYBOARD = 3;
+const int MAT_MOUSE    = 4;
+const int MAT_SPEAKER  = 5;
+
+void initSpheres()
+{
+    // Left speaker
+    spheres[0] = Sphere(
+        vec3(-1.5, 0.2, 0.15),  // origin
+        0.15,                 // radius
+        MAT_SPEAKER
+    );
+
+    // Right speaker
+    spheres[1] = Sphere(
+        vec3(1.5, 0.2, 0.15),
+        0.15,
+        MAT_SPEAKER
+    );
+}
+
+void initBoxes()
+{
+    mat3 rot = mat3(1.0);
+
+    // Monitor screen
+    boxes[0] = Box(
+        vec3(0.0, 0.7, 0.05),
+        vec3(0.9, 0.35, 0.000001),
+        rot,
+        MAT_MONITOR
+    );
+
+    // Monitor frame and stand
+    boxes[1] = Box(
+        vec3(0.0, 0.7, 0.0),
+        vec3(0.9, 0.35, 0.05),
+        rot,
+        MAT_FRAME
+    );
+    boxes[2] = Box(
+        vec3(0.0, 0.35, -0.05),
+        vec3(0.25, 0.15, 0.1),
+        rot,
+        MAT_FRAME
+    );
+
+    // Keyboard
+    boxes[3] = Box(
+        vec3(0.0, 0.1, 0.7),
+        vec3(0.7, 0.05, 0.2),
+        rot,
+        MAT_KEYBOARD
+    );
+
+    // Mouse
+    boxes[4] = Box(
+        vec3(1.0, 0.08, 0.7),
+        vec3(0.1, 0.04, 0.15),
+        rot,
+        MAT_MOUSE
+    );
+
+    // Speakers
+    boxes[5] = Box(
+        vec3(-1.5, 0.2, 0.0),     // left speaker 
+        vec3(0.2, 0.2, 0.2),
+        rot,
+        MAT_SPEAKER
+    );
+    boxes[6] = Box(
+        vec3(1.5, 0.2, 0.0),      // right speaker 
+        vec3(0.2, 0.2, 0.2),
+        rot,
+        MAT_SPEAKER
+    );
+}
+vec3 materialColor(int material)
+{
+    if (material == MAT_MONITOR)
+        return vec3(0.001); // dark gray
+
+    if (material == MAT_FRAME)
+        return vec3(0.25, 0.31, 0.39); // darker blue
+
+    if (material == MAT_KEYBOARD)
+        return vec3(0.78, 0.50, 0.50); // reddish
+
+    if (material == MAT_MOUSE)
+        return vec3(0.80, 0.72, 0.45); // yellowish
+        
+    if (material == MAT_SPEAKER)
+        return vec3(0.95, 0.55, 0.25); // orangish
+
+    return vec3(0.0);
+}
+
 void initScene() 
 {
     float aspectRatio = iResolution.x / iResolution.y;
@@ -386,41 +487,49 @@ void initScene()
     camera = Camera(origin, lookAt, up, right, aspectRatio);
 
     // Floor Material 
-    materials[0].ka = vec3(0.05);
-    materials[0].kd = vec3(0.5);
-    materials[0].ks = vec3(0.8);
-    materials[0].shininess = 10.0;
-    materials[0].kr = 0.3 * materials[0].ks;
+    vec3 ambientColor = vec3(0.15);
+    int i = MAT_FLOOR;
+    materials[i].ka = ambientColor;
+    materials[i].kd = vec3(0.5);
+    materials[i].ks = vec3(0.8);
+    materials[i].shininess = 10.0;
+    materials[i].kr = 0.3 * materials[i].ks;
 
-    materials[1].ka = vec3(0.0);
-    materials[1].kd = vec3(0.0);
-    materials[1].ks = vec3(0.95);
-    materials[1].shininess = 512.;
-    materials[1].kr = 0.8 * materials[1].ks;
+    // Monitor Material
+    i = MAT_MONITOR;
+    materials[i].ka = ambientColor;
+    materials[i].kd = materialColor(MAT_MONITOR);
+    materials[i].ks = vec3(0.1);
+    materials[i].shininess = 256.;
+    materials[i].kr = 0.8 * materials[i].ks;
 
-    materials[2].ka = vec3(0.0);
-    materials[2].kd = vec3(0.5);
-    materials[2].ks = vec3(0.5);
-    materials[2].shininess = 128.;
-    materials[2].kr = 0.5 * materials[2].ks;
+    i = MAT_FRAME;
+    materials[i].ka = ambientColor;
+    materials[i].kd = materialColor(MAT_FRAME);
+    materials[i].ks = vec3(0.1);
+    materials[i].shininess = 32.;
+    materials[i].kr = 0.8 * materials[i].ks;
 
-    materials[3].ka = vec3(0.0);
-    materials[3].kd = vec3(13, 71, 161) / 255.;
-    materials[3].ks = vec3(0.3);
-    materials[3].shininess = 128.;
-    materials[3].kr = 0.4 * materials[3].ks;
+    i = MAT_KEYBOARD;
+    materials[i].ka = ambientColor;
+    materials[i].kd = materialColor(MAT_KEYBOARD);
+    materials[i].ks = vec3(0.1);
+    materials[i].shininess = 32.;
+    materials[i].kr = 0.5 * materials[i].ks;
 
-    materials[4].ka = vec3(0.0);
-    materials[4].kd = vec3(183, 28, 28) / 255.;
-    materials[4].ks = 1.2 * materials[4].kd;
-    materials[4].shininess = 128.;
-    materials[4].kr = 0.6 * materials[4].ks;
+    i = MAT_MOUSE;
+    materials[i].ka = ambientColor;
+    materials[i].kd = materialColor(MAT_MOUSE);
+    materials[i].ks = vec3(0.1);
+    materials[i].shininess = 32.;
+    materials[i].kr = 0.5 * materials[i].ks;
 
-    materials[5].ka = vec3(0.0);
-    materials[5].kd = vec3(27, 94, 32) / 255.;
-    materials[5].ks = 0.2 * materials[5].kd;
-    materials[5].shininess = 128.;
-    materials[5].kr = 0.5 * materials[5].ks;
+    i = MAT_SPEAKER;
+    materials[i].ka = ambientColor;
+    materials[i].kd = materialColor(MAT_SPEAKER);
+    materials[i].ks = vec3(0.3);
+    materials[i].shininess = 64.;
+    materials[i].kr = 0.4 * materials[i].ks;
 
     lights[0] = Light(vec3(-4., 5., 2.5), 
                             /*Ia*/ vec3(0.1, 0.1, 0.1), 
@@ -432,12 +541,15 @@ void initScene()
                             /*Is*/ vec3(0.5, 0.5, 0.5));
     planes[0] = Plane(vec3(0., 1., 0.), vec3(0., 0., 0.), 0);
 
-    spheres[0] = Sphere(vec3(0., 1.5, 0.), 0.5, 1);
-    spheres[1] = Sphere(vec3(-0.6, 0.4, 1.1), 0.4, 2);
+    initSpheres();
+    initBoxes();
 
-    boxes[0] = Box(vec3(0., 0.5, 0.), vec3(0.5), getRotXYZ(0., 0., 0.), 3);
-    boxes[1] = Box(vec3(-1.2, 0.85, 0.0), vec3(0.4, 0.85, 0.4), getRotXYZ(0., 0.4 * M_PI, 0.), 4);
-    boxes[2] = Box(vec3(0.8, 0.3, 0.8), vec3(0.75, 0.3, 0.3), getRotXYZ(0., 0.2 * M_PI, 0.), 5);
+    // spheres[0] = Sphere(vec3(0., 1.5, 0.), 0.5, 1);
+    // spheres[1] = Sphere(vec3(-0.6, 0.4, 1.1), 0.4, 2);
+
+    // boxes[0] = Box(vec3(0., 0.5, 0.), vec3(0.5), getRotXYZ(0., 0., 0.), 3);
+    // boxes[1] = Box(vec3(-1.2, 0.85, 0.0), vec3(0.4, 0.85, 0.4), getRotXYZ(0., 0.4 * M_PI, 0.), 4);
+    // boxes[2] = Box(vec3(0.8, 0.3, 0.8), vec3(0.75, 0.3, 0.3), getRotXYZ(0., 0.2 * M_PI, 0.), 5);
 }
 
 // TODO Step 5: Change the value of numberOfSampling to 50
