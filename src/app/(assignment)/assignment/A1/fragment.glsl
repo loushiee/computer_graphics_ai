@@ -160,6 +160,8 @@ Hit hitSphere(const Ray r, const Sphere s)
     vec3 rayDir = r.dir;
     vec3 sphereCtr = s.ori;
     float radius = s.r;
+
+    // Quadratic coefficients
     float A = dot(rayDir, rayDir);
     float B = 2.0 * (dot(raySrc, rayDir) - dot(sphereCtr, rayDir));
     float C = dot(raySrc, raySrc) + dot(sphereCtr, sphereCtr) - (2.0 * dot(raySrc, sphereCtr)) - (radius * radius);
@@ -168,22 +170,18 @@ Hit hitSphere(const Ray r, const Sphere s)
         return hit;
     }
 
+    // Compute t values
     float sqrtD = sqrt(D);
     float t1 = (-B - sqrtD) / (2.0 * A);
-    float EpsilonLocal = Epsilon*100.0;
-    if (t1 > EpsilonLocal) {
-        vec3 hit1 = raySrc + (t1 * rayDir);
-        vec3 normal = normalize(hit1 - sphereCtr);
-        hit = Hit(t1, hit1, normal, s.matId);
-        return hit;
-    }
-
     float t2 = (-B + sqrtD) / (2.0 * A);
-    if (t2 > EpsilonLocal) {
-        vec3 hit2 = raySrc + (t2 * rayDir);
-        vec3 normal = normalize(hit2 - sphereCtr);
-        hit = Hit(t2, hit2, normal, s.matId);
-        return hit;
+    float EpsilonLocal = Epsilon*100.0;
+    
+    // Check for valid intersection and compute hit information
+    if ((t1 > EpsilonLocal) || (t2 > EpsilonLocal)) {
+        float tFinal = (t1 > EpsilonLocal) ? t1 : t2;
+        vec3 hitSphere = raySrc + (tFinal * rayDir);
+        vec3 normal = normalize(hitSphere - sphereCtr);
+        hit = Hit(tFinal, hitSphere, normal, s.matId);
     }
 
 	/* your implementation ends */
@@ -202,61 +200,46 @@ Hit hitBox(const Ray r, const Box b)
     vec3 boxCtr = b.ori;
     vec3 boxHalfWidth = b.halfWidth;
     mat3 boxRot = b.rot;
+
+    // Transform ray to box local space
     mat3 rotInverse = transpose(boxRot);
     vec3 boxLocal = rotInverse * (raySrc - boxCtr);
     vec3 rayDirLocal = rotInverse * rayDir;
+
+    // Ray-box intersection in local space (compute t)
     vec3 t1 = ( -boxHalfWidth - boxLocal) / rayDirLocal;
     vec3 t2 = ( boxHalfWidth - boxLocal) / rayDirLocal;
     vec3 tmin = min(t1, t2);
     vec3 tmax = max(t1, t2);
     float tEnter = max(max(tmin.x, tmin.y), tmin.z);
     float tExit = min(min(tmax.x, tmax.y), tmax.z);
+
+    // Check for valid intersection and compute hit information in global space
     float EpsilonLocal = Epsilon*100.0;
-    if (tEnter > tExit || tExit <= EpsilonLocal) {
-        return hit;
-    }
-    if (tEnter > EpsilonLocal) {
-        vec3 hitEnterLocal = boxLocal + (tEnter * rayDirLocal);
-        vec3 hitEnterWorld = boxRot * hitEnterLocal + boxCtr;
-        vec3 normalLocal;
-        if (abs(hitEnterLocal.x - boxHalfWidth.x) < Epsilon) {
-            normalLocal = vec3(1.0, 0.0, 0.0);
-        } else if (abs(hitEnterLocal.x + boxHalfWidth.x) < Epsilon) {
-            normalLocal = vec3(-1.0, 0.0, 0.0);
-        } else if (abs(hitEnterLocal.y - boxHalfWidth.y) < Epsilon) {
-            normalLocal = vec3(0.0, 1.0, 0.0);
-        } else if (abs(hitEnterLocal.y + boxHalfWidth.y) < Epsilon) {
-            normalLocal = vec3(0.0, -1.0, 0.0);
-        } else if (abs(hitEnterLocal.z - boxHalfWidth.z) < Epsilon) {
-            normalLocal = vec3(0.0, 0.0, 1.0);
+    if ((tEnter > EpsilonLocal) && (tExit > EpsilonLocal) && (tEnter <= tExit)) {
+        float tFinal = (tEnter > EpsilonLocal) ? tEnter : tExit;
+        vec3 hitLocal = boxLocal + (tFinal * rayDirLocal);
+        vec3 hitLocalMinus = abs(hitLocal - boxHalfWidth);
+        vec3 hitLocalPlus = abs(hitLocal + boxHalfWidth);
+        vec3 normalLocal = vec3(0.0);
+        if (hitLocalMinus.x < Epsilon) {
+            normalLocal.x = 1.0;
+        } else if (hitLocalPlus.x < Epsilon) {
+            normalLocal.x = -1.0;
+        } else if (hitLocalMinus.y < Epsilon) {
+            normalLocal.y = 1.0;
+        } else if (hitLocalPlus.y < Epsilon) {
+            normalLocal.y = -1.0;
+        } else if (hitLocalMinus.z < Epsilon) {
+            normalLocal.z = 1.0;
         } else {
-            normalLocal = vec3(0.0, 0.0, -1.0);
+            normalLocal.z = -1.0;
         }
         vec3 normalWorld = normalize(boxRot * normalLocal);
-        hit = Hit(tEnter, hitEnterWorld, normalWorld, b.matId);
-        return hit;
+        vec3 hitWorld = boxCtr + (boxRot * hitLocal);
+        hit = Hit(tFinal, hitWorld, normalWorld, b.matId);
     }
-    if (tExit > EpsilonLocal) {
-        vec3 hitExitLocal = boxLocal + (tExit * rayDirLocal);
-        vec3 hitExitWorld = boxRot * hitExitLocal + boxCtr;
-        vec3 normalLocal;
-        if (abs(hitExitLocal.x - boxHalfWidth.x) < Epsilon) {
-            normalLocal = vec3(1.0, 0.0, 0.0);
-        } else if (abs(hitExitLocal.x + boxHalfWidth.x) < Epsilon) {
-            normalLocal = vec3(-1.0, 0.0, 0.0);
-        } else if (abs(hitExitLocal.y - boxHalfWidth.y) < Epsilon) {
-            normalLocal = vec3(0.0, 1.0, 0.0);
-        } else if (abs(hitExitLocal.y + boxHalfWidth.y) < Epsilon) {
-            normalLocal = vec3(0.0, -1.0, 0.0);
-        } else if (abs(hitExitLocal.z - boxHalfWidth.z) < Epsilon) {
-            normalLocal = vec3(0.0, 0.0, 1.0);
-        } else {
-            normalLocal = vec3(0.0, 0.0, -1.0);
-        }
-        vec3 normalWorld = normalize(boxRot * normalLocal);
-        hit = Hit(tExit, hitExitWorld, normalWorld, b.matId);
-        return hit;
-    }
+    
 	/* your implementation ends */
     
 	return hit;
