@@ -479,8 +479,8 @@ vec3 materialColor(int material)
 void initScene() 
 {
     float aspectRatio = iResolution.x / iResolution.y;
-    vec3 origin = vec3(0., 2.8, 3);
-    vec3 lookAt = normalize(vec3(0.,0.45,0.) - origin);
+    vec3 origin = vec3(3., 2., 3.);
+    vec3 lookAt = normalize(vec3(0.,0.,0.) - origin);
     vec3 up = vec3(0, 1, 0);
     vec3 right = normalize(cross(lookAt, up));
     up = normalize(cross(right, lookAt));
@@ -498,35 +498,35 @@ void initScene()
     // Monitor Material
     i = MAT_MONITOR;
     materials[i].ka = ambientColor;
-    materials[i].kd = materialColor(MAT_MONITOR);
+    materials[i].kd = materialColor(i);
     materials[i].ks = vec3(0.1);
     materials[i].shininess = 256.;
     materials[i].kr = 0.8 * materials[i].ks;
 
     i = MAT_FRAME;
     materials[i].ka = ambientColor;
-    materials[i].kd = materialColor(MAT_FRAME);
+    materials[i].kd = materialColor(i);
     materials[i].ks = vec3(0.1);
     materials[i].shininess = 32.;
     materials[i].kr = 0.8 * materials[i].ks;
 
     i = MAT_KEYBOARD;
     materials[i].ka = ambientColor;
-    materials[i].kd = materialColor(MAT_KEYBOARD);
+    materials[i].kd = materialColor(i);
     materials[i].ks = vec3(0.1);
     materials[i].shininess = 32.;
     materials[i].kr = 0.5 * materials[i].ks;
 
     i = MAT_MOUSE;
     materials[i].ka = ambientColor;
-    materials[i].kd = materialColor(MAT_MOUSE);
+    materials[i].kd = materialColor(i);
     materials[i].ks = vec3(0.1);
     materials[i].shininess = 32.;
     materials[i].kr = 0.5 * materials[i].ks;
 
     i = MAT_SPEAKER;
     materials[i].ka = ambientColor;
-    materials[i].kd = materialColor(MAT_SPEAKER);
+    materials[i].kd = materialColor(i);
     materials[i].ks = vec3(0.3);
     materials[i].shininess = 64.;
     materials[i].kr = 0.4 * materials[i].ks;
