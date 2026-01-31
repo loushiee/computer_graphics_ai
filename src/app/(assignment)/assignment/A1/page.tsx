@@ -5,15 +5,15 @@ import { Canvas, useFrame, useThree } from '@react-three/fiber';
 import * as THREE from 'three';
 
 import vertexShader from '@/shaders/common/vertex.glsl';
-import fragmentShader from './fragment.glsl';
-// import fragmentShader from './fragment_creative.glsl';
+// import fragmentShader from './fragment.glsl';
+import fragmentShader from './fragment_creative.glsl';
 import { useFBO } from '@react-three/drei';
 
 const HW0 = ({ dpr }: { dpr: number }) => {
   const { viewport, pointer } = useThree();
 
-  const floorTex = new THREE.TextureLoader().load('/assignments/A1_img/marble.jpg');
-  // const floorTex = new THREE.TextureLoader().load('/assignments/A1_img/oak.jpg');
+  // const floorTex = new THREE.TextureLoader().load('/assignments/A1_img/marble.jpg');
+  const floorTex = new THREE.TextureLoader().load('/assignments/A1_img/oak.jpg');
 
   floorTex.wrapS = floorTex.wrapT = THREE.RepeatWrapping;
   floorTex.repeat.set(1, 1);

@@ -216,7 +216,7 @@ Hit hitBox(const Ray r, const Box b)
 
     // Check for valid intersection and compute hit information in global space
     float EpsilonLocal = Epsilon*100.0;
-    if ((tEnter > EpsilonLocal) && (tExit > EpsilonLocal) && (tEnter <= tExit)) {
+    if ((tEnter <= tExit) && (tEnter > EpsilonLocal || tExit > EpsilonLocal)) {
         float tFinal = (tEnter > EpsilonLocal) ? tEnter : tExit;
         vec3 hitLocal = boxLocal + (tFinal * rayDirLocal);
         vec3 hitLocalMinus = abs(hitLocal - boxHalfWidth);
