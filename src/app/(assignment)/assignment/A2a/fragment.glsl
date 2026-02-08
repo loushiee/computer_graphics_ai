@@ -1,3 +1,7 @@
+// #version 300 es
+// precision highp float;              //// set default precision of float variables to high precision
+// in vec2 vUv; // UV (screen) coordinates in [0,1]^2
+// out vec4 outFragColor; 
 /////////////////////////////////////////////////////
 //// CS 8803/4803 CGAI: Computer Graphics in AI Era
 //// Assignment 2A: SDF and Ray Marching
@@ -27,8 +31,8 @@ float sdfSphere(vec3 p, vec3 c, float r)
 {
     //// your implementation starts
     
-    return 0.0;
-    
+    return length(p - c) - r;
+
     //// your implementation ends
 }
 
@@ -37,7 +41,7 @@ float sdfPlane(vec3 p, float h)
 {
     //// your implementation starts
     
-    return 0.0;
+    return p.y - h;
     
     //// your implementation ends
 }
@@ -47,7 +51,10 @@ float sdfBox(vec3 p, vec3 c, vec3 b)
 {
     //// your implementation starts
     
-    return 0.0;
+    vec3 d = abs(p - c) - b;
+    float outsideDist = length(max(d, 0.));
+    float insideDist = min(max(max(d.x, d.y), d.z), 0.0);
+    return outsideDist + insideDist;
     
     //// your implementation ends
 }
@@ -65,7 +72,7 @@ float sdfIntersection(float s1, float s2)
 {
     //// your implementation starts
     
-    return s1;
+    return max(s1, s2);
 
     //// your implementation ends
 }
@@ -74,7 +81,7 @@ float sdfUnion(float s1, float s2)
 {
     //// your implementation starts
     
-    return s1;
+    return min(s1, s2);
 
     //// your implementation ends
 }
@@ -83,7 +90,7 @@ float sdfSubtraction(float s1, float s2)
 {
     //// your implementation starts
     
-    return s1;
+    return max(s1, -s2);
 
     //// your implementation ends
 }
@@ -131,6 +138,20 @@ float sdf(vec3 p)
     
     //// your implementation starts
     
+    float sdfPlane1 = sdfPlane(p, plane1_h);
+    float sdfSphere1 = sdfSphere(p, sphere1_c, sphere1_r);
+    float sdfBox1 = sdfBox(p, box1_c, box1_b);
+    s = sdfUnion(sdfUnion(sdfPlane1, sdfSphere1), sdfBox1);
+
+    float sdfBox2 = sdfBox(p, box2_c, box2_b);
+    float sdfSphere2 = sdfSphere(p, sphere2_c, sphere2_r);
+    float sdfBoxSphereSubtraction = sdfSubtraction(sdfBox2, sdfSphere2);
+    s = sdfUnion(s, sdfBoxSphereSubtraction);
+
+    float sdfSphere3 = sdfSphere(p, sphere3_c, sphere3_r);
+    float sdfSphere4 = sdfSphere(p, sphere4_c, sphere4_r);
+    float sdfSphereIntersection = sdfIntersection(sdfSphere3, sdfSphere4);
+    s = sdfUnion(s, sdfSphereIntersection);
 
     //// your implementation ends
 
@@ -153,6 +174,13 @@ float rayMarching(vec3 origin, vec3 dir)
     for(int i = 0; i < 100; i++)
     {
         //// your implementation starts
+
+        vec3 originLocal = origin + (s * dir);
+        float sLocal = sdf(originLocal);
+        if (sLocal < 0.001) {
+            break;
+        }
+        s += sLocal;
 
         //// your implementation ends
     }
@@ -177,7 +205,11 @@ vec3 normal(vec3 p)
 
     //// your implementation starts
     
-    return vec3(0.0, 0.0, 0.0);
+    float gx = sdf(p + vec3(dx, 0.0, 0.0)) - sdf(p - vec3(dx, 0.0, 0.0));
+    float gy = sdf(p + vec3(0.0, dx, 0.0)) - sdf(p - vec3(0.0, dx, 0.0));
+    float gz = sdf(p + vec3(0.0, 0.0, dx)) - sdf(p - vec3(0.0, 0.0, dx));
+    vec3 g = vec3(gx, gy, gz) / 2.0*dx;
+    return normalize(g);
 
     //// your implementation ends
 }
@@ -219,6 +251,65 @@ vec3 phong_shading(vec3 p, vec3 n)
 
     //// your implementation for coloring starts
 
+    //// 1st object: plane
+    float plane1_h = -0.1;
+    
+    //// 2nd object: sphere
+    vec3 sphere1_c = vec3(-2.0, 1.0, 0.0);
+    float sphere1_r = 0.25;
+
+    //// 3rd object: box
+    vec3 box1_c = vec3(-1.0, 1.0, 0.0);
+    vec3 box1_b = vec3(0.2, 0.2, 0.2);
+
+    //// 4th object: box-sphere subtraction
+    vec3 box2_c = vec3(0.0, 1.0, 0.0);
+    vec3 box2_b = vec3(0.3, 0.3, 0.3);
+
+    vec3 sphere2_c = vec3(0.0, 1.0, 0.0);
+    float sphere2_r = 0.4;
+
+    //// 5th object: sphere-sphere intersection
+    vec3 sphere3_c = vec3(1.0, 1.0, 0.0);
+    float sphere3_r = 0.4;
+
+    vec3 sphere4_c = vec3(1.3, 1.0, 0.0);
+    float sphere4_r = 0.3;
+
+    float distSmallest = 1e9;
+    color = vec3(228, 153, 51) / 255.0;
+
+    float sdfPlane1 = sdfPlane(p, plane1_h);
+    if (sdfPlane1 < distSmallest) {
+        distSmallest = sdfPlane1;
+        color = vec3(228, 228, 0) / 255.0;
+    }
+    float sdfSphere1 = sdfSphere(p, sphere1_c, sphere1_r);
+    if (sdfSphere1 < distSmallest) {
+        distSmallest = sdfSphere1;
+        color = vec3(255, 0, 0) / 255.0;
+    }
+    float sdfBox1 = sdfBox(p, box1_c, box1_b);
+    if (sdfBox1 < distSmallest) {
+        distSmallest = sdfBox1;
+        color = vec3(0, 255, 0) / 255.0;
+    }
+
+    float sdfBox2 = sdfBox(p, box2_c, box2_b);
+    float sdfSphere2 = sdfSphere(p, sphere2_c, sphere2_r);
+    float sdfBoxSphereSubtraction = sdfSubtraction(sdfBox2, sdfSphere2);
+    if (sdfBoxSphereSubtraction < distSmallest) {
+        distSmallest = sdfBoxSphereSubtraction;
+        color = vec3(0, 0, 255) / 255.0;
+    }
+
+    float sdfSphere3 = sdfSphere(p, sphere3_c, sphere3_r);
+    float sdfSphere4 = sdfSphere(p, sphere4_c, sphere4_r);
+    float sdfSphereIntersection = sdfIntersection(sdfSphere3, sdfSphere4);
+    if (sdfSphereIntersection < distSmallest) {
+        distSmallest = sdfSphereIntersection;
+        color = vec3(3, 248, 251) / 255.0;
+    }
 
     //// your implementation for coloring ends
 
@@ -262,4 +353,5 @@ void mainImage(out vec4 fragColor, in vec2 fragCoord)
 void main() 
 {
     mainImage(gl_FragColor, gl_FragCoord.xy);
+    // mainImage(outFragColor, gl_FragCoord.xy);
 }
