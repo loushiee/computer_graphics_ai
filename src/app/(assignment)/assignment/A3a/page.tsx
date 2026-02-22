@@ -6,7 +6,7 @@ import { useTexture } from '@react-three/drei';
 import * as THREE from 'three';
 
 import vertexShader from '@/shaders/common/vertex.glsl';
-import fragmentShader from './fragment.glsl';
+import fragmentShader from './fragment_creative.glsl';
 
 // Noise Texture
 const NOISE_TEXTURE_URL = 'https://cdn.maximeheckel.com/noises/noise2.png';
