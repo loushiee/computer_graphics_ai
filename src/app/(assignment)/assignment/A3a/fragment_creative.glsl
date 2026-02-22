@@ -177,6 +177,175 @@ float density_cloud(vec3 pos) {
     return max(0.0, dens);
 }
 
+/////////////////////////////////////////////////////
+//// Creative Expression: Ring Nebula
+//// Inspired by images in https://www.forbes.com/sites/startswithabang/2019/06/03/the-ring-nebula-is-much-much-more-than-a-ring/
+/////////////////////////////////////////////////////
+
+float nebulaCoreRadius = 0.4;
+float nebulaOuterRadius = 0.2;
+float cloudRadius = 0.4;
+
+float density_nebula(vec3 pos)
+{
+    float baseRadius = nebulaCoreRadius;
+    float variation  = 0.1;
+
+    float r = length(pos);
+    vec3 dir = normalize(pos);
+
+    float dirNoise = noise3(dir * 3.0);
+    float coreRadius = baseRadius + dirNoise * variation;
+
+    float shellRadius = coreRadius + nebulaOuterRadius;
+
+    // Inner core
+    float core = 1.0 - smoothstep(coreRadius - 0.2,
+                                  coreRadius,
+                                  r);
+
+    // Outer core
+    float shell = 1.0 - smoothstep(shellRadius - 0.25,
+                                   shellRadius,
+                                   r);
+
+    shell *= (1.0 - core);
+
+    // Outer halo (cloud)
+    float haloMask = smoothstep(shellRadius,
+                                shellRadius + cloudRadius,
+                                r);
+    float halo = 0.0;
+    if (r > shellRadius * 0.8) {
+        halo = density_cloud(pos * 0.65);
+    }
+
+    float dens = core * 1.5
+               + shell * 0.35
+               + halo * 0.7;
+
+    return max(dens, 0.0);
+}
+
+vec4 sampleVolumeNebula(vec3 p, vec2 fragCoord)
+{
+    float dens = density_nebula(p);
+    if (dens <= 0.0)
+        return vec4(0.0);
+
+    float r = length(p);
+
+    float baseRadius = nebulaCoreRadius;
+    float variation  = 0.1;
+
+    vec3 dir = normalize(p);
+    float dirNoise = noise3(dir * 3.0);
+    float coreRadius = baseRadius + dirNoise * variation;
+    float shellRadius = coreRadius + nebulaOuterRadius;
+
+    float coreMask = 1.0 - smoothstep(coreRadius - 0.2,
+                                      coreRadius,
+                                      r);
+
+    float shellMask = 1.0 - smoothstep(shellRadius - 0.25,
+                                       shellRadius,
+                                       r);
+    shellMask *= (1.0 - coreMask);
+
+    float haloMask = 0.0;
+    if (r > shellRadius)
+    {
+        haloMask = smoothstep(shellRadius,
+                              shellRadius + cloudRadius,
+                              r);
+    }
+
+    float haloOuterRadius = shellRadius + cloudRadius;
+
+    // Thin outer rim (0.01 thickness)
+    float rimMask = smoothstep(haloOuterRadius - 0.01,
+                               haloOuterRadius,
+                               r);
+    rimMask *= haloMask;
+
+    // ---- Colors ----
+    vec3 coreColor = vec3(0, 0.1, 0.6);
+    vec3 lightGreen = vec3(0.4, 1.0, 0.6);
+    vec3 nearWhite  = vec3(0.95, 1.0, 0.95);
+    vec3 rimRed = vec3(1.0, 0.25, 0.25);
+    float n = noise3(p * 2.0);
+    float whiteness = n * n;
+    vec3 shellColor = mix(lightGreen, nearWhite, whiteness * 0.6);
+    
+    // Halo color from density_cloud modulation
+    float fbmVal = 0.0;
+    float amp = 0.5;
+    float freq = 2.0;
+
+    for (int i = 0; i < 4; i++)
+    {
+        fbmVal += amp * noise3(p * freq);
+        freq *= 2.0;
+        amp *= 0.5;
+    }
+
+    float yellowWhiteMix = smoothstep(0.3, 0.8, fbmVal);
+
+    vec3 yellowColor = vec3(1.0, 0.9, 0.25);
+    vec3 whiteColor  = vec3(1.0, 0.95, 0.9);
+
+    vec3 haloColor = mix(yellowColor, whiteColor, yellowWhiteMix);
+    vec3 haloFinalColor = mix(haloColor, rimRed, rimMask);
+
+    vec3 color =
+        coreMask  * coreColor
+        + shellMask * shellColor
+        + haloMask  * haloFinalColor;
+
+    float glow = exp(-r * 3.0);
+    vec3 rgb = dens * color * (1.4 + glow * 1.2);
+
+    float sigma = dens * 10.0;
+
+    return vec4(rgb, sigma);
+}
+
+// From Flickering Stars https://www.shadertoy.com/view/NtsBzB
+vec3 hash( vec3 p ) // replace this by something better
+{
+	p = vec3( dot(p,vec3(127.1,311.7, 74.7)),
+			  dot(p,vec3(269.5,183.3,246.1)),
+			  dot(p,vec3(113.5,271.9,124.6)));
+
+	return -1.0 + 2.0*fract(sin(p)*43758.5453123);
+}
+float noise( in vec3 p )
+{
+    vec3 i = floor( p );
+    vec3 f = fract( p );
+	
+	vec3 u = f*f*(3.0-2.0*f);
+
+    return mix( mix( mix( dot( hash( i + vec3(0.0,0.0,0.0) ), f - vec3(0.0,0.0,0.0) ), 
+                          dot( hash( i + vec3(1.0,0.0,0.0) ), f - vec3(1.0,0.0,0.0) ), u.x),
+                     mix( dot( hash( i + vec3(0.0,1.0,0.0) ), f - vec3(0.0,1.0,0.0) ), 
+                          dot( hash( i + vec3(1.0,1.0,0.0) ), f - vec3(1.0,1.0,0.0) ), u.x), u.y),
+                mix( mix( dot( hash( i + vec3(0.0,0.0,1.0) ), f - vec3(0.0,0.0,1.0) ), 
+                          dot( hash( i + vec3(1.0,0.0,1.0) ), f - vec3(1.0,0.0,1.0) ), u.x),
+                     mix( dot( hash( i + vec3(0.0,1.0,1.0) ), f - vec3(0.0,1.0,1.0) ), 
+                          dot( hash( i + vec3(1.0,1.0,1.0) ), f - vec3(1.0,1.0,1.0) ), u.x), u.y), u.z );
+}
+vec3 backgroundStars(vec2 uv)
+{
+    vec3 stars_direction = normalize(vec3(uv * 2.0f - 1.0f, 1.0f)); // could be view vector for example
+	float stars_threshold = 8.0f; // modifies the number of stars that are visible
+	float stars_exposure = 200.0f; // modifies the overall strength of the stars
+	float stars = pow(clamp(noise(stars_direction * 200.0f), 0.0f, 1.0f), stars_threshold) * stars_exposure;
+	stars *= mix(0.4, 1.4, noise(stars_direction * 100.0f + vec3(iTime))); // time based flickering
+	return vec3(stars);
+}
+
+
 float sdBox(vec3 p, vec3 b) {
     vec3 d = abs(p) - b;
     return min(max(d.x, max(d.y, d.z)), 0.0) + length(max(d, 0.0));
@@ -192,6 +361,8 @@ float density(vec3 p, int model) {
         return density_cube(p);
     } else if(model == 1) {
         return density_cloud(p);
+    } else if(model == 2) {
+        return density_nebula(p);
     } else {
         return 0.0;
     }
@@ -248,6 +419,7 @@ vec4 sampleVolume(vec3 p, vec2 fragCoord, int model) {
     float sigma = dens * 8.0;
     return vec4(rgb, sigma);
 }
+
 
 /////////////////////////////////////////////////////
 //// volumetric rendering
@@ -319,7 +491,12 @@ vec4 volumeRenderBackToFront(vec3 ro, vec3 rd, vec2 fragCoord, int n_samples, in
         vec3 p = ro + t * rd;
 
         //// color and density sample at p
-        vec4 s = sampleVolume(p, fragCoord, model);
+        vec4 s = vec4(0.0);
+        if(model == 2) {
+            s = sampleVolumeNebula(p, fragCoord);
+        } else {
+            s = sampleVolume(p, fragCoord, model);
+        }
 
         float Ti = exp(-s.a * dt);
         vec3 Di = s.rgb * (1.0 - Ti);
@@ -330,6 +507,37 @@ vec4 volumeRenderBackToFront(vec3 ro, vec3 rd, vec2 fragCoord, int n_samples, in
 
     return vec4(color, 1.0 - T);
 }
+
+void mainImageCreative(out vec4 fragColor, in vec2 fragCoord) {
+    vec2 uv = (fragCoord - 0.5 * iResolution.xy) / iResolution.y;
+
+    //// Camera
+    float camX = cos(iTime * 0.13 - 1.5);
+    float camZ = sin(iTime * 0.13 - 1.5);
+    float camYOff = sin(iTime * 0.3) * 0.28;
+
+    vec3 ro = normalize(vec3(camX, camYOff - 0.03, camZ)) * 2.4;
+
+    vec3 cameraDir = -normalize(ro + vec3(0.0, ro.y * 0.30 + 0.11, 0.0));
+    vec3 cameraRight = normalize(cross(vec3(0.0, 1.0, 0.0), cameraDir));
+    vec3 cameraUp = normalize(cross(cameraDir, cameraRight));
+
+    vec3 rd = normalize(cameraDir + cameraUp * uv.y * 0.8 + cameraRight * uv.x * 0.8);
+
+    //// background sky
+    vec2 uvStars = fragCoord/iResolution.xy;
+    vec3 bgStars = backgroundStars(uvStars);
+
+    //// volumetric rendering
+    int model = 2;
+    int n_samples = 128;
+    vec4 vol = volumeRenderBackToFront(ro, rd, fragCoord, n_samples, model);
+
+    vec3 finalCol = mix(bgStars, vol.rgb, clamp(vol.a, 0.0, 1.0));
+
+    fragColor = vec4(finalCol, 1.0);
+}
+
 
 /////////////////////////////////////////////////////
 //// mainImage
@@ -373,5 +581,6 @@ void mainImage(out vec4 fragColor, in vec2 fragCoord) {
 }
 
 void main() {
-    mainImage(gl_FragColor, gl_FragCoord.xy);
+    // mainImage(gl_FragColor, gl_FragCoord.xy);
+    mainImageCreative(gl_FragColor, gl_FragCoord.xy);
 }
