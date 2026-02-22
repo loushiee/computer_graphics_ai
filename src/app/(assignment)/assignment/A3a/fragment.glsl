@@ -79,7 +79,13 @@ vec2 intersectAABB(vec3 rayOrigin, vec3 rayDir, vec3 boxMin, vec3 boxMax) {
 
     //// TODO Step 1: Ray–AABB intersection
     //// your implementation starts
-
+    vec3 t1 = (boxMin - rayOrigin) / rayDir;
+    vec3 t2 = (boxMax - rayOrigin) / rayDir;
+    vec3 tmin = min(t1, t2);
+    vec3 tmax = max(t1, t2);
+    tNear = max(tmin.x, max(tmin.y, tmin.z));
+    tFar = min(tmax.x, min(tmax.y, tmax.z));
+    return vec2(tNear, tFar);
     //// your implementation ends
 
     return vec2(tNear, tFar);
@@ -279,7 +285,9 @@ vec4 volumeRenderFrontToBack(vec3 ro, vec3 rd, vec2 fragCoord, int n_samples, in
 
         //// TODO Step 2: Front-to-Back volumetric rendering
         //// your implementation starts
-
+        float Ti = exp(-s.a * dt);
+        color += T * (1.0 - Ti) * s.rgb;
+        T *= Ti;
         //// your implementation ends
     }
 
@@ -296,7 +304,28 @@ vec4 volumeRenderBackToFront(vec3 ro, vec3 rd, vec2 fragCoord, int n_samples, in
 
     //// TODO Step 3: Back-to-front volumetric rendering
     //// your implementation starts
+    // Copy code from volumeRenderFrontToBack
+    vec2 box = intersectAABB(ro, rd, -BBOX * 0.5, BBOX * 0.5);
+    if(box.x > box.y)
+        return vec4(0.0);
+    float tNear = max(box.x, 0.0);
+    float tFar = box.y;
+    float dt = (tFar - tNear) / float(n_samples);
+    float jitter = blueNoise(fragCoord + vec2(123.0));
 
+    // Flip the loop order for back-to-front rendering
+    for(int i = n_samples - 1; i >= 0; i--) {
+        float t = tNear + (float(i) + jitter) * dt;
+        vec3 p = ro + t * rd;
+
+        //// color and density sample at p
+        vec4 s = sampleVolume(p, fragCoord, model);
+
+        float Ti = exp(-s.a * dt);
+        vec3 Di = s.rgb * (1.0 - Ti);
+        color = Di + (Ti * color);
+        T *= Ti;
+    }
     //// your implementation ends
 
     return vec4(color, 1.0 - T);
@@ -331,8 +360,8 @@ void mainImage(out vec4 fragColor, in vec2 fragCoord) {
     int n_samples = 128;
     //// TODO Step 3: Back-to-Front volumetric rendering
     //// Switch between front-to-back and back-to-front rendering here
-    vec4 vol = volumeRenderFrontToBack(ro, rd, fragCoord, n_samples, model);
-    // vec4 vol = volumeRenderBackToFront(ro, rd, fragCoord, n_samples, model);
+    // vec4 vol = volumeRenderFrontToBack(ro, rd, fragCoord, n_samples, model);
+    vec4 vol = volumeRenderBackToFront(ro, rd, fragCoord, n_samples, model);
 
     //// composite cloud over sky
     vec3 finalCol = mix(sky, vol.rgb, clamp(vol.a * 1.3, 0.0, 1.0));
