@@ -115,6 +115,11 @@ bool is_initializing() {
     return iTime < 0.06 || iFrame < 2.;
 }
 
+// vec4 texelFetch(sampler2D iChannel0, ivec2 coord, int level)
+// {
+//     return vec4(0.0);
+// }
+
 // Load rope particles from the previous frame and update the mouse particle.
 void load_state() {
     //0,0: (num_particles, num_springs, selected_particle)
@@ -198,7 +203,7 @@ float spring_constraint(Spring s) {
     // and L0 = s.restLength is the rest length of the spring.
 
     //// Your implementation starts
-    return 0.;
+    return distance(particles[s.a].pos, particles[s.b].pos) - s.restLength;
     //// Your implementation ends
 }
 
@@ -212,7 +217,11 @@ vec2 spring_constraint_gradient(vec2 a, vec2 b) {
     // Think: what is the gradient of (a-b) with respect to a?
 
     //// Your implementation starts
-    return vec2(0.);
+    float dist = distance(a, b);
+    if (dist < 1e-6) {
+        return vec2(0.0);
+    }
+    return (a - b) / dist;
     //// Your implementation ends
 }
 
@@ -234,8 +243,12 @@ void solve_spring(Spring s, float dt) {
     float denom = 0.;
 
     //// Your implementation starts
-    vec2 grad_a = vec2(0.); // only keep for the sake of the compiler
-    vec2 grad_b = vec2(0.); // only keep for the sake of the compiler
+    numer = spring_constraint(s) * -1.;
+    vec2 grad_a = spring_constraint_grad(s, s.a);
+    vec2 grad_b = spring_constraint_grad(s, s.b);
+    float w_a = particles[s.a].inv_mass * dot(grad_a, grad_a);
+    float w_b = particles[s.b].inv_mass * dot(grad_b, grad_b);
+    denom = w_a + w_b;
     //// Your implementation ends
 
     // PBD if you comment out the following line
@@ -262,7 +275,7 @@ float collision_constraint(vec2 a, vec2 b, float collision_dist){
     float dist = length(a - b);
     if(dist < collision_dist){
         //// Your implementation starts
-        return 0.0;
+        return dist - collision_dist;
         //// Your implementation ends
     }
     else{
@@ -283,7 +296,7 @@ vec2 collision_constraint_gradient(vec2 a, vec2 b, float collision_dist){
     float dist = length(a - b);
     if(dist <= collision_dist){
         //// Your implementation starts
-        return vec2(0.0);
+        return (a - b) / dist;
         //// Your implementation ends
     }
     else{
@@ -305,7 +318,13 @@ void solve_collision_constraint(int i, int j, float collision_dist, float dt){
     float denom = 0.0;
 
     //// Your implementation starts
-    vec2 grad = vec2(0); // only keep for the sake of the compiler
+    vec2 pos_i = particles[i].pos;
+    vec2 pos_j = particles[j].pos;
+    numer = collision_constraint(pos_i, pos_j, collision_dist) * -1.;
+    vec2 grad = collision_constraint_gradient(pos_i, pos_j, collision_dist);
+    float w_a = particles[i].inv_mass * dot(grad, grad);
+    float w_b = particles[j].inv_mass * dot(grad, grad);
+    denom = w_a + w_b;
     //// Your implementation ends
 
     //PBD if you comment out the following line, which is faster
@@ -333,7 +352,7 @@ float phi(vec2 p){
 float ground_constraint(vec2 p, float ground_collision_dist){
     if(phi(p) < ground_collision_dist){
         //// Your implementation starts
-        return 0.0;
+        return phi(p) - ground_collision_dist;
         //// Your implementation ends
     }
     else{
@@ -352,9 +371,11 @@ vec2 ground_constraint_gradient(vec2 p, float ground_collision_dist){
 
     if(phi(p) < ground_collision_dist){
         //// Your implementation starts
-
-        return vec2(0.0);
-        
+        const float PI = 3.14159265359;
+        //let's do sin(x)+0.5
+        float grad_x = -0.1 * 2. * PI * cos(p.x * 2. * PI);
+        float grad_y = 1.0;
+        return vec2(grad_x, grad_y);
         //// Your implementation ends
     }
     else{
@@ -376,9 +397,10 @@ void solve_ground_constraint(int i, float ground_collision_dist, float dt){
     float denom = 0.0;
 
     //// Your implementation starts
-    vec2 grad = vec2(0.); // only keep for the sake of the compiler
-
-
+    vec2 pos_i = particles[i].pos;
+    numer = ground_constraint(pos_i, ground_collision_dist) * -1.;
+    vec2 grad = ground_constraint_gradient(pos_i, ground_collision_dist);
+    denom = particles[i].inv_mass * dot(grad, grad);
     //// Your implementation ends
 
     //PBD if you comment out the following line, which is faster
@@ -405,9 +427,19 @@ void solve_constraints(float dt) {
     // Solve all constraints
 
     //// Your implementation starts
+    // 1. Spring constraints
+    for (int i = 1; i < n_springs; i++) {
+        solve_spring(springs[i], dt);
+    }    
+    for (int i = 1; i < n_particles; i++) {
+        for (int j = 1; j < n_particles; j++) {
+            if (i != j) {
+                solve_collision_constraint(i, j, collision_dist, dt);
+            }
+        }
 
-    
-
+        solve_ground_constraint(i, ground_collision_dist, dt);
+    }
     //// Your implementation ends
 }
 
