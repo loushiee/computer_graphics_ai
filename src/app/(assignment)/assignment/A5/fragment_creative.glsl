@@ -51,6 +51,12 @@ int nearest_particle(vec2 p) {
             idx = i;
         }
     }
+
+    // Prevent selecting the basket particles
+    if (idx > 1 && idx < 8){
+        return -1;
+    }
+
     return idx;
 }
 
@@ -78,32 +84,38 @@ Spring add_spring(int a, int b, float inv_stiffness){
     return s;
 }
 
-const int initial_particles = 6;
+const int initial_particles = 8;
 
 void init_state(void){
-    n_particles = 6;
-    n_springs = 5;
+    n_particles = initial_particles;
+    n_springs = initial_particles - 2;
 
     //particle 0 is the mouse particle and will be set later
-    particles[1].pos = vec2(-0.6, 0.5); 
+    particles[1].pos = vec2(-1.3, -0.4); 
     particles[1].vel = vec2(0.0);
-    particles[2].pos = vec2(-0.3, 0.5); 
+    particles[2].pos = vec2(0.8, 0.5); 
     particles[2].vel = vec2(0.0);
-    particles[3].pos = vec2(-0, 0.5);
+    particles[3].pos = vec2(0.9, 0.35);
     particles[3].vel = vec2(0.0);
-    particles[4].pos = vec2(0.3, 0.5);
+    particles[4].pos = vec2(1.0, 0.2);
     particles[4].vel = vec2(0.0);
-    particles[5].pos = vec2(0.6, 0.5);
+    particles[5].pos = vec2(1.2, 0.2);
     particles[5].vel = vec2(0.0);
+    particles[6].pos = vec2(1.3, 0.35);
+    particles[6].vel = vec2(0.0);
+    particles[7].pos = vec2(1.4, 0.5);
+    particles[7].vel = vec2(0.0);
 
     current_add_particle = initial_particles;
 
     // Springs between adjacent rope particles
     //spring 0 is the mouse particle to the first rope particle
-    springs[1] = add_spring(1, 2, 1.0 / 100.0); // first to second rope particle
-    springs[2] = add_spring(2, 3, 1.0 / 100.0); // second to third rope particle
-    springs[3] = add_spring(3, 4, 1.0 / 100.0); // third to fourth rope particle
-    springs[4] = add_spring(4, 5, 1.0 / 100.0); // fourth to fifth rope particle
+    float stiffness = 50.0;
+    springs[1] = add_spring(2, 3, 1.0 / stiffness); // second to third rope particle
+    springs[2] = add_spring(3, 4, 1.0 / stiffness); // third to fourth rope particle
+    springs[3] = add_spring(4, 5, 1.0 / stiffness); // fourth to fifth rope particle
+    springs[4] = add_spring(5, 6, 1.0 / stiffness); // fifth to sixth rope particle
+    springs[5] = add_spring(6, 7, 1.0 / stiffness); // sixth to seventh rope particle
 }
 
 
@@ -115,6 +127,7 @@ bool is_initializing() {
     return iTime < 0.06 || iFrame < 2.;
 }
 
+// for debugging using glslangValidator
 // vec4 texelFetch(sampler2D iChannel0, ivec2 coord, int level)
 // {
 //     return vec4(0.0);
@@ -146,8 +159,8 @@ void load_state() {
         particles[i].inv_mass = 1.0; // all particles have mass 1.0
         particles[i].is_fixed = false;
 
-        if(i==1 || i==5){
-            particles[i].inv_mass = 0.0; // fixed particles at the ends of the rope
+        if(i==2 || i==initial_particles-1){
+            particles[i].inv_mass = 5.0; // fixed particles at the ends of the rope
             particles[i].is_fixed = true; // make sure the first and last particles are fixed
         }
     }
@@ -178,7 +191,8 @@ void load_state() {
     }
 
     //load springs
-    springs[0] = Spring(0, selected_particle, 0.0, 1.0 / 100.0); // mouse particle to first rope particle
+    float projectile_stiffness = 20.0;
+    springs[0] = Spring(0, selected_particle, 0.0, 1.0 / projectile_stiffness); // mouse particle to first rope particle
     for (int i = 1; i < n_springs; i++) {
         vec4 data = texelFetch(iChannel0, ivec2(i, 1), 0);
         springs[i].a = int(data.x);
