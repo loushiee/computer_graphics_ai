@@ -759,7 +759,13 @@ void main() {
             float mask = 1.0 - step(r, dist);
             float fi = float(i) / float(max(activeN, 1));
             float hue = 0.10 + fi * 0.08;
-            vec3 c = hsv2rgb(vec3(hue, 0.85, 1.0));
+            // vec3 c = hsv2rgb(vec3(hue, 0.85, 1.0));
+            vec3 c = vec3(0.);
+            if (t_out < 0.01) {
+                c = hsv2rgb(vec3(0., 0., 100.) / 255.0);
+            } else {
+                c = hsv2rgb(vec3(0., 255., 255.) / 255.0);
+            }
             col += mask * 0.18 * c;
         }
 
